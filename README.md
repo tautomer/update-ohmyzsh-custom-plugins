@@ -22,9 +22,9 @@ Run `update-custom-plugins` to perform the update.
 
 The plugin is in very early stage which barely does its job. There are many things in my mind.
 
-- [ ] Check if the repo really need an update before `git pull`.
+- [x] Check if the repo really need an update before `git pull`.
 
-- [ ] Check if it is safe to pull from remote. Abort if there are conflicts.
+- [x] Check if it is safe to pull from remote. Abort if there are conflicts.
 
 - [ ] More elegant output message.
 
