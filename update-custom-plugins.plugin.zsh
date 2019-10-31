@@ -20,7 +20,7 @@ function update-custom-plugins() {
         if [[ -n $url ]] && [[ $url != $omz_url ]]; then
             echo "Checking update for $repo_name"
             if [[ -n $(git -C $i status --untracked-files=no --porcelain) ]]; then
-                dirty="$dirty$repo_name "
+                dirty+="$repo_name "
                 echo "$repo_name is dirty, no update will be made"
                 continue
             fi
@@ -30,19 +30,19 @@ function update-custom-plugins() {
                 echo "The local version is $nc commits behind the remote"
                 git -C $i merge origin/master --no-commit
                 if [[ $? == 0 ]]; then
-                    updated="$updated$repo_name "
+                    updated+="$repo_name "
                     ((n++))
                 else
-                    conflict="$conflict$repo_name "
+                    conflict+="$repo_name "
                     git -C $i merge --abort
                 fi
             else
                 echo "$repo_name is up-to-date"
-                uptodate="$uptodate$repo_name "
+                uptodate+="$repo_name "
             fi
         else
             echo "Skip $repo_name which is NOT a git repo"
-            notrepo="$notrepo$repo_name "
+            notrepo+="$repo_name "
         fi
 
     done
