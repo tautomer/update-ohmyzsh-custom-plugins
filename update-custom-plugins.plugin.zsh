@@ -27,7 +27,7 @@ function update-custom-plugins() {
             git -C $i remote update > /dev/null
             nc=$(git -C $i log HEAD..origin/master --oneline | wc -l)
             if [[ $nc != 0 ]]; then
-                echo "The local version is $nc commits behind the remote"
+                echo "The local version is ${nc} commits behind the remote"
                 git -C $i merge origin/master --no-commit
                 if [[ $? == 0 ]]; then
                     updated+="$repo_name "
