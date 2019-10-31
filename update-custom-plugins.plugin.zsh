@@ -27,7 +27,7 @@ function update-custom-plugins() {
             git -C $i remote update > /dev/null
             nc=$(git -C $i log HEAD..origin/master --oneline | wc -l)
             if [[ $nc != 0 ]]; then
-                echo "The local version is ${nc} commits behind the remote"
+                echo "The local version is $nc commits behind the remote"
                 git -C $i merge origin/master --no-commit
                 if [[ $? == 0 ]]; then
                     updated+="$repo_name "
@@ -48,16 +48,17 @@ function update-custom-plugins() {
     done
 
     # print summary
-    echo "Summary:"
+    msg="\nSummary:"
     if [[ $n == 0 ]]; then
-        echo "    All repos are already up-to-date!"
+        msg+="\n All repos are already up-to-date!"
     elif [[ $n == $nrepos ]]; then
-        echo "    All repos have been updated to the latest version!"
+        msg+="\n All repos have been updated to the latest version!"
     else
-        echo "    The following repos are already up-to-date: $uptodate"
-        echo "    $n out of $nrepos repos updated: $updated"
-        [[ -n $notrepo ]] && echo "    The following folders are not git repos: $notrepo"
-        [[ -n $conflict ]] && echo "    The following repos are dirty: $conflict\n    Please resolve the conflict first and then update"
-        [[ -n $dirty ]] && echo "    The following repos are dirty: $dirty\n    Please take care of your local changes and then update once again"
+        msg+="\n The following repos are already up-to-date: $uptodate"
+        msg+="\n $n out of $nrepos repos updated: $updated"
+        [[ -n "$notrepo" ]] && msg+="\n The following folders are not git repos: $notrepo"
+        [[ -n $conflict ]]  && msg+="\n The following repos will have merge conflicts : $conflict\n Please resolve the conflict first and then update"
+        [[ -n $dirty ]]     && msg+="\n The following repos are dirty: $dirty\n Please take care of your local changes and then update once again"
     fi
+    echo $msg
 }
