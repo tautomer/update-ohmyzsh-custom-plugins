@@ -1,64 +1,62 @@
 function update-custom-plugins() {
+    # Initialize arrays for summary tracking
+    local uptodate=() dirty=() conflict=() updated=()
+    local total=0
 
-    # find all 2nd-level directories in $ZSH_CUSTOM
-    dirs=$(find $ZSH_CUSTOM -mindepth 2 -maxdepth 2 -type d -not -path '*example*')
-    nrepos=$(echo $dirs | wc -l)
-    omz_url=$(git -C $ZSH_CUSTOM config --get remote.origin.url)
-    # for output purpose
-    uptodate=""
-    dirty=""
-    conflict=""
-    updated=""
-    notrepo=""
-    n=0
+    echo "Checking for custom plugin updates..."
 
-    for i in $(echo $dirs)
-    do
-        url=$(git -C $i config --get remote.origin.url)
-        repo_name=$(basename $i)
-        # skip if the folder is not a git repo
-        if [[ -n $url ]] && [[ $url != $omz_url ]]; then
-            echo "Checking update for $repo_name"
-            if [[ -n $(git -C $i status --untracked-files=no --porcelain) ]]; then
-                dirty+="$repo_name "
-                echo "$repo_name is dirty, no update will be made"
-                continue
-            fi
-            git -C $i remote update > /dev/null
-            nc=$(git -C $i log HEAD..origin/master --oneline | wc -l)
-            if [[ $nc != 0 ]]; then
-                echo "The local version is $nc commits behind the remote"
-                git -C $i merge origin/master --no-commit
-                if [[ $? == 0 ]]; then
-                    updated+="$repo_name "
-                    ((n++))
-                else
-                    conflict+="$repo_name "
-                    git -C $i merge --abort
-                fi
-            else
-                echo "$repo_name is up-to-date"
-                uptodate+="$repo_name "
-            fi
-        else
-            echo "Skip $repo_name which is NOT a git repo"
-            notrepo+="$repo_name "
+    # Loop exactly 2 levels deep in ZSH_CUSTOM using shell globbing
+    for repo in "$ZSH_CUSTOM"/*/*; do
+        # Skip if not a git repository or is an example directory
+        [[ -d "$repo/.git" ]] || continue
+        [[ "$repo" == *example* ]] && continue
+
+        ((total++))
+        local name=$(basename "$repo")
+
+        # 1. Check if repo is dirty
+        if [[ -n $(git -C "$repo" status --short --untracked-files=no) ]]; then
+            dirty+=("$name")
+            echo "  -> $name is dirty, skipping."
+            continue
         fi
 
+        # 2. Fetch latest remote changes silently
+        git -C "$repo" fetch --quiet
+
+        # 3. Dynamically get the upstream tracking branch (e.g., origin/main or origin/master)
+        local upstream=$(git -C "$repo" rev-parse --abbrev-ref '@{u}' 2>/dev/null)
+        if [[ -z "$upstream" ]]; then
+            echo "  -> $name has no upstream tracking branch, skipping."
+            continue
+        fi
+
+        # 4. Check commit difference
+        local nc=$(git -C "$repo" rev-list --count HEAD.."$upstream")
+        if (( nc == 0 )); then
+            uptodate+=("$name")
+        else
+            echo "  -> Updating $name ($nc commits behind)..."
+            # Use --ff-only to safely update without unexpected merge commits
+            if git -C "$repo" merge "$upstream" --ff-only >/dev/null 2>&1; then
+                updated+=("$name")
+            else
+                conflict+=("$name")
+                git -C "$repo" merge --abort >/dev/null 2>&1
+                echo "  -> Merge conflict for $name!"
+            fi
+        fi
     done
 
-    # print summary
-    msg="\nSummary:"
-    if [[ $n == 0 ]]; then
-        msg+="\n All repos are already up-to-date!"
-    elif [[ $n == $nrepos ]]; then
-        msg+="\n All repos have been updated to the latest version!"
+    # Print Summary
+    echo ""
+    echo "=== Summary ==="
+    if (( ${#updated[@]} == 0 && ${#dirty[@]} == 0 && ${#conflict[@]} == 0 )); then
+        echo "All $total repos are already up-to-date!"
     else
-        msg+="\n The following repos are already up-to-date: $uptodate"
-        msg+="\n $n out of $nrepos repos updated: $updated"
-        [[ -n "$notrepo" ]] && msg+="\n The following folders are not git repos: $notrepo"
-        [[ -n $conflict ]]  && msg+="\n The following repos will have merge conflicts : $conflict\n Please resolve the conflict first and then update"
-        [[ -n $dirty ]]     && msg+="\n The following repos are dirty: $dirty\n Please take care of your local changes and then update once again"
+        [[ ${#uptodate[@]} -gt 0 ]] && echo "   Up-to-date: ${uptodate[*]}"
+        [[ ${#updated[@]} -gt 0 ]]  && echo "   Updated: ${updated[*]}"
+        [[ ${#conflict[@]} -gt 0 ]] && echo "   Conflicts (needs manual fix): ${conflict[*]}"
+        [[ ${#dirty[@]} -gt 0 ]]    && echo "   Dirty (needs manual fix): ${dirty[*]}"
     fi
-    echo $msg
 }
